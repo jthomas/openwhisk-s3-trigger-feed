@@ -1,0 +1,20 @@
+{
+  "name": "s3-trigger-feed",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "ava"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ibm-cos-sdk": "^1.3.2",
+    "lru-cache": "^5.1.1",
+    "redis": "^2.8.0"
+  },
+  "devDependencies": {
+    "ava": "1.0.0-rc.2"
+  }
+}
