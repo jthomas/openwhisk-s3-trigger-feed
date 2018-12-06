@@ -4,6 +4,7 @@ const BucketFiles = require('./lib/bucket_files.js')
 const BuckerPoller = require('./lib/bucket_poller.js')
 const CompressAndSerializeMaps = require('./lib/serialize_map.js')
 const SerializedCache = require('./lib/serialized_cache.js')
+const PollManager = require('./lib/poll_manager.js')
 
 const fs = require('fs')
 const CONFIG = JSON.parse(fs.readFileSync('config.json', 'utf-8'))
@@ -29,12 +30,7 @@ const cache = SerializedCache(memorizedCache, CompressAndSerializeMaps)
 
 const bucket_poller = BuckerPoller(client, BUCKET, cache)
 
-const poll_bucket_changes = async () => {
-  try {
-    await bucket_poller()
-    setTimeout(poll_bucket_changes, INTERVAL)
-  } catch(err) {
-  }
-}
+const state = new Map()
+const manager = PollManager(state, setTimeout, clearTimeout)
 
-poll_bucket_changes()
+manager.add(BUCKET, bucket_poller, INTERVAL)
