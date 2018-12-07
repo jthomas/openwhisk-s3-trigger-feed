@@ -57,11 +57,3 @@ test('should fire async callback for all file changes', async t => {
 
   t.is(changes.size, 0)
 })
-
-test('should cache current files with file changes', async t => {
-  t.fail()
-})
-
-test('should handle callback failures when caching files', async t => {
-  t.fail()
-})
