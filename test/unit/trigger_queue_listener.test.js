@@ -1,11 +1,10 @@
 import test from 'ava'
 
-const TriggerQueueListener = require('../lib/trigger_queue_listener.js')
-const Queue = require('../lib/queue.js')
+const TriggerQueueListener = require('../../lib/trigger_queue_listener.js')
+const Queue = require('../../lib/queue.js')
 
 test('should invoke trigger for each file event on queue', async t => {
   const q = Queue('queue-id-trigger')
-  const trigger = 'my-trigger'
 
   const files = new Map([
     ['my-file-a.jpg', 'added'],
@@ -19,12 +18,11 @@ test('should invoke trigger for each file event on queue', async t => {
     ['my-file-ccc.jpg', 'deleted']
   ])
 
-  t.plan((files.size * 2) + 2)
+  t.plan(files.size + 2)
 
-  const invoke = async options => {
-    t.is(options.name, trigger)
-    const name = options.params.name
-    const status = options.params.status
+  const operation = async options => {
+    const name = options.name
+    const status = options.status
     t.is(files.get(name), status)
     files.delete(name)
     return new Promise((resolve, reject) => {
@@ -32,9 +30,7 @@ test('should invoke trigger for each file event on queue', async t => {
     })
   }
 
-  const client = { triggers: { invoke } }
-    
-  const listener = TriggerQueueListener(q, trigger, client)
+  const listener = TriggerQueueListener(q, operation)
   q.push(files)
 
   return new Promise((resolve) => {

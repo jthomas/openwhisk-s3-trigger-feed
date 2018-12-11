@@ -1,9 +1,9 @@
 import test from 'ava'
 const crypto = require("crypto")
-const bucket_files = require('../lib/bucket_files.js')
+const BucketFiles = require('../../lib/bucket_files.js')
 
 test('should return no changes for empty current and previous buckets', t => {
-  const changed = bucket_files.file_changes(new Map(), new Map())
+  const changed = BucketFiles().file_changes(new Map(), new Map())
 
   t.is(changed.size, 0, 'bucket should be empty')
 })
@@ -19,7 +19,7 @@ test('should return no changes for same current and previous bucket files', t =>
   }
 
   t.is(files.size, 100)
-  const changed = bucket_files.file_changes(files, files)
+  const changed = BucketFiles().file_changes(files, files)
 
   t.is(changed.size, 0, 'bucket should be empty')
 })
@@ -38,7 +38,7 @@ test('should return all files added with empty previous bucket files', t => {
   t.is(current.size, 100)
   t.is(previous.size, 0)
 
-  const changed = bucket_files.file_changes(previous, current)
+  const changed = BucketFiles().file_changes(previous, current)
   t.is(changed.size, current.size, 'bucket should have all the new files')
 
   for (let [name, status] of changed) { 
@@ -61,7 +61,7 @@ test('should return all files deleted with empty current bucket files', t => {
   t.is(current.size, 0)
   t.is(previous.size, 100)
 
-  const changed = bucket_files.file_changes(previous, current)
+  const changed = BucketFiles().file_changes(previous, current)
   t.is(changed.size, previous.size, 'bucket should have all the new files')
 
   for (let [name, status] of changed) { 
@@ -86,7 +86,7 @@ test('should return all files changed with different etags for same files in bot
   t.is(current.size, total_files)
   t.is(previous.size, total_files)
 
-  const changed = bucket_files.file_changes(previous, current)
+  const changed = BucketFiles().file_changes(previous, current)
   t.is(changed.size, current.size, 'bucket should have all changed files')
   t.is(changed.size, previous.size, 'bucket should have all changed files')
 
@@ -149,7 +149,7 @@ test('should return correct files statuses with multiple file changes in buckets
   t.is(unmodified.size, added.size)
   t.is(unmodified.size, previous.size - deleted.size - modified.size)
 
-  const changed = bucket_files.file_changes(previous, current)
+  const changed = BucketFiles().file_changes(previous, current)
   t.is(changed.size, added.size + modified.size + deleted.size, 'files changes should have all changed files')
 
   for (let [name, status] of changed) { 
@@ -187,7 +187,7 @@ test('should return empty etag map for empty bucket', async t => {
       return { promise: () => Promise.resolve(results) }
     }
   }
-  const name_etags = await bucket_files.etags(client, bucket)
+  const name_etags = await BucketFiles(client).etags(bucket)
   t.is(name_etags.size, 0, 'etags map should be empty')
 })
 
@@ -206,7 +206,7 @@ test('should return etag map for bucket with files', async t => {
       return { promise: () => Promise.resolve(results) }
     }
   }
-  const name_etags = await bucket_files.etags(client, bucket)
+  const name_etags = await BucketFiles(client).etags(bucket)
   t.is(name_etags.size, results.Contents.length, 'etags map match results')
 
   results.Contents.forEach(file => {

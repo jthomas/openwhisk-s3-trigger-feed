@@ -1,6 +1,6 @@
 import test from 'ava'
 
-const PollManager = require('../lib/poll_manager.js')
+const PollManager = require('../../lib/poll_manager.js')
 
 test('should set timeout id in poll state and call set with operation and delay', async t => {
   t.plan(3)

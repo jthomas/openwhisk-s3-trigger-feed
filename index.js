@@ -1,50 +1,59 @@
-const Redis = require('./lib/redis.js') 
-const Cache = require('./lib/cache.js') 
+const COS = require('ibm-cos-sdk')
+
 const BucketFiles = require('./lib/bucket_files.js')
+const BucketFileCache = require('./lib/bucket_file_cache.js')
 const BucketPoller = require('./lib/bucket_poller.js')
-const CompressAndSerializeMaps = require('./lib/serialize_map.js')
-const SerializedCache = require('./lib/serialized_cache.js')
-const PollManager = require('./lib/poll_manager.js')
+const TimeoutPollingManager = require('./lib/timeout_polling_manager.js')
 const Queue = require('./lib/queue.js')
 const TriggerQueueListener = require('./lib/trigger_queue_listener.js')
-
-const fs = require('fs')
-const CONFIG = JSON.parse(fs.readFileSync('config.json', 'utf-8'))
-
-const COS = require('ibm-cos-sdk')
-const LRU = require('lru-cache')
-
-const openwhisk = require('openwhisk');
-const options = CONFIG.openwhisk
-const ow = openwhisk(options)
 
 // use for self-signed redis certificate
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
-const client = new COS.S3(CONFIG.object_store)
+module.exports = (triggerManager, logger, redis = process.env.REDIS) => {
+  // Is Redis missing?
+  const bucketFileCache = BucketFileCache(redis)
+  const scheduler = TimeoutPollingManager()
+  const triggers = new Set()
 
-const MAX_LOCAL_BUCKETS= 1000
-const INTERVAL = 10000
+  // what are the details?
+  const add = (id, details) => {
+    const { bucket, interval, s3_endpoint, s3_api_key } = details
 
-const BUCKET = 'polling-for-changes'
+    // ? config validation
+    const client = new COS.S3({ endpoint: s3_endpoint, apiKeyId: s3_api_key })
 
-const remote_cache = Redis(CONFIG.redis)
-const local_cache = new LRU(MAX_LOCAL_BUCKETS)
+    const bucketFiles = BucketFiles(client)
 
-const memorizedCache = Cache(local_cache, remote_cache)
-const cache = SerializedCache(memorizedCache, CompressAndSerializeMaps)
+    // SHOULD BE PER TRIGGER NOT IN A MAP ??
+    // WHAT ABOUT CONCURRENT REQUESTS? SHOULD HANDLE MULTIPLE REQS NEED BUCKET + TRIGGER ID?
+    const bucketEventQueue = Queue(id)
+    const fireTrigger = event => triggerManager.fireTrigger(id, event)
 
-const queue = Queue(BUCKET)
-const listener = TriggerQueueListener(queue, CONFIG.openwhisk.trigger, ow)
+    // fires triggers upon file event messages on queue
+    const listener = TriggerQueueListener(bucketEventQueue, fireTrigger)
 
-const state = new Map()
-const manager = PollManager(state, setTimeout, clearTimeout)
+    // poll bucket files for changes
+    const bucketPoller = BucketPoller(bucketFiles, bucket, bucketFileCache, bucketEventQueue)
 
-const wrappedBucketFiles = {
-  file_changes: BucketFiles.file_changes, 
-  etags: id => BucketFiles.etags(client, id)
+    const interval_in_ms = interval * 60 * 1000
+
+    // schedule bucket polling each minute
+    scheduler.add(id, bucketPoller, interval_in_ms)
+
+    triggers.add(id)
+  }
+  
+  const remove = id => {
+    // what id doesn't exist ??
+
+    // stop polling for bucket changes
+    scheduler.remove(id)
+    // clear out remaining untriggered file change events
+    Queue(id).clear()
+
+    triggers.delete(id)
+  }
+
+  return { add, remove }
 }
-
-const bucket_poller = BucketPoller(wrappedBucketFiles, BUCKET, cache, queue)
-
-manager.add(BUCKET, bucket_poller, INTERVAL)

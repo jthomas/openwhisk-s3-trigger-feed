@@ -1,6 +1,6 @@
 import test from 'ava'
 
-const queue = require('../lib/queue.js')
+const queue = require('../../lib/queue.js')
 
 test('should allow users to push and pop FIFO queue', t => {
   const q = queue('queue-id-a')

@@ -1,6 +1,6 @@
 import test from 'ava'
 
-const SerializeMap = require('../lib/serialize_map.js')
+const SerializeMap = require('../../lib/serialize_map.js')
 const crypto = require("crypto")
 
 test('encoding and decoding map returns same values', t => {

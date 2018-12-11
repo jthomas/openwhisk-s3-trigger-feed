@@ -1,6 +1,6 @@
 import test from 'ava'
 
-const cache = require('../lib/cache.js')
+const cache = require('../../lib/cache.js')
 const LRU = require("lru-cache")
 
 test.beforeEach(t => {
