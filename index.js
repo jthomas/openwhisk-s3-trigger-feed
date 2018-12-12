@@ -10,12 +10,12 @@ const TriggerQueueListener = require('./lib/trigger_queue_listener.js')
 // use for self-signed redis certificate
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
-module.exports = (triggerManager, logger, redis = process.env.REDIS) => {
+module.exports = function (triggerManager, logger, redis = process.env.REDIS) {
   const bucketFileCache = BucketFileCache(redis)
   const scheduler = TimeoutPollingManager()
   const triggers = new Map()
 
-  const add = (id, details) => {
+  const add = async (id, details) => {
     // if the trigger is being updated, reset system state for trigger bucket.
     if (triggers.has(id)) {
       remove(id)
@@ -43,7 +43,7 @@ module.exports = (triggerManager, logger, redis = process.env.REDIS) => {
     triggers.set(id, bucket)
   }
   
-  const remove = id => {
+  const remove = async id => {
     if (!triggers.has(id)) return
 
     // stop polling for file changes on bucket
@@ -54,7 +54,7 @@ module.exports = (triggerManager, logger, redis = process.env.REDIS) => {
     queue.clear()
 
     // remove cached file etags 
-    bucketFileCache.del(id)
+    await bucketFileCache.del(id)
 
     triggers.delete(id)
   }

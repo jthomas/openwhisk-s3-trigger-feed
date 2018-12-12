@@ -4,6 +4,8 @@ const S3TriggerFeed = require('../../index.js')
 const Redis = require('../../lib/redis.js')
 const openwhisk = require('openwhisk')
 const COS = require('ibm-cos-sdk')
+const fs = require('fs')
+
 const winston = require('winston')
 
 const level = process.env.LOG_LEVEL || 'error'
@@ -13,22 +15,16 @@ const logger = winston.createLogger({
   level, transports: [ consoleLogger ]
 });
 
-const mandatoryEnvParams = [
-  'REDIS',
-  'BUCKET_ID',
-  'BUCKET_ENDPOINT',
-  'BUCKET_API_KEY',
-  '__OW_API_HOST',
-  '__OW_API_KEY',
-  '__OW_NAMESPACE',
-]
+const config = JSON.parse(fs.readFileSync('./test/integration/config.json', 'utf-8'))
 
-for (let param of mandatoryEnvParams) {
-  if (!process.env[param]) throw new Error(`Missing mandatory environment parameter ${param}`)
+const topLevelConfig = ['redis', 'bucket', 'openwhisk']
+
+for (let param of topLevelConfig) {
+  if (!config[param]) throw new Error(`Missing mandatory configuration parameter: ${param}`)
 }
 
 test.before(async t => {
-  const ow = openwhisk()
+  const ow = openwhisk(config.openwhisk)
 
   logger.info('create triggers & rules...')
   await ow.triggers.update({name: 's3-trigger-feed-test'})
@@ -36,13 +32,13 @@ test.before(async t => {
 
   logger.info('ensuring bucket is empty...')
   const s3 = new COS.S3({
-    endpoint: process.env.BUCKET_ENDPOINT,
-    apiKeyId: process.env.BUCKET_API_KEY
+    endpoint: config.bucket.endpoint,
+    apiKeyId: config.bucket.api_key
   })
 
-  const bucket = await s3.listObjects({ Bucket: process.env.BUCKET_ID }).promise()
+  const bucket = await s3.listObjects({ Bucket: config.bucket.id }).promise()
   const params = {
-    Bucket: process.env.BUCKET_ID,
+    Bucket: config.bucket.id,
     Delete: { }
   }
 
@@ -53,8 +49,8 @@ test.before(async t => {
   }
 
   logger.info('clearing cached file list')
-  const redis = Redis(process.env.REDIS)
-  await redis.del(process.env.BUCKET_ID)
+  const redis = Redis(config.redis)
+  await redis.del(config.bucket.id)
 }) 
 
 test.after.always(async t => {
@@ -63,8 +59,8 @@ test.after.always(async t => {
   await ow.triggers.delete({name: 's3-trigger-feed-test'})
   await ow.rules.delete({name: 's3-trigger-feed-test-rule'})
 
-  const redis = Redis(process.env.REDIS)
-  await redis.del(process.env.BUCKET_ID)
+  const redis = Redis(config.redis)
+  await redis.del(config.bucket.id)
 })
 
 test('object store bucket changes should invoke openwhisk triggers', async t => {
@@ -74,19 +70,19 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
     fireTrigger: (id, event) => ow.triggers.invoke({name: id, params: event})
   }
 
-  const feedProvider = S3TriggerFeed(triggerManager, logger)
+  const feedProvider = new S3TriggerFeed(triggerManager, logger)
 
   const trigger = '/_/s3-trigger-feed-test'
   const details = {
-    bucket: process.env.BUCKET_ID,
-    s3_endpoint: process.env.BUCKET_ENDPOINT,
-    s3_api_key: process.env.BUCKET_API_KEY,
+    bucket: config.bucket.id,
+    s3_endpoint: config.bucket.endpoint,
+    s3_api_key: config.bucket.api_key,
     interval: 0
   }
 
   const s3 = new COS.S3({
-    endpoint: process.env.BUCKET_ENDPOINT,
-    apiKeyId: process.env.BUCKET_API_KEY
+    endpoint: config.bucket.endpoint,
+    apiKeyId: config.bucket.api_key
   })
 
   feedProvider.add(trigger, details)
@@ -96,7 +92,7 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
 
   for(let i = 0; i < NUMBER_OF_FILES; i++) {
     newFiles.push({
-      Bucket: process.env.BUCKET_ID,
+      Bucket: config.bucket.id,
       Key: `file-${i}.txt`,
       Body: `original-file-contents-${i}`,
     })
@@ -154,7 +150,7 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
       t.deepEqual(fileEvents(newFiles, 'modified'), activationEvents)
 
       const params = {
-        Bucket: process.env.BUCKET_ID,
+        Bucket: config.bucket.id,
         Delete: {}
       }
 
