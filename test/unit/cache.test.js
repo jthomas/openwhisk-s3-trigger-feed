@@ -8,7 +8,8 @@ test.beforeEach(t => {
   const client = { 
     cache: {},
     get: async key => client.cache[key],
-    set: async (key, value) => client.cache[key] = value
+    set: async (key, value) => client.cache[key] = value,
+    del: async (key) => delete client.cache[key]
   } 
   t.context = { client, lru_cache }
 })
@@ -51,4 +52,17 @@ test('should set values in local and remote caches', async t => {
   await instance.set(key, value)
   t.is(t.context.lru_cache.get(key), value)
   t.is(t.context.client.cache[key], value)
+})
+
+test('should delete values in local and remote caches', async t => {
+  const key = 'some_key'
+  const value = Buffer.from('some value string')
+
+  t.context.lru_cache.set(key, value)
+  t.context.client.cache[key] = value
+ 
+  const instance = cache(t.context.lru_cache, t.context.client)
+  await instance.del(key)
+  t.false(t.context.lru_cache.has(key))
+  t.false(Object.keys(t.context.client.cache).includes(key))
 })

@@ -11,46 +11,50 @@ const TriggerQueueListener = require('./lib/trigger_queue_listener.js')
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
 module.exports = (triggerManager, logger, redis = process.env.REDIS) => {
-  // Is Redis missing?
   const bucketFileCache = BucketFileCache(redis)
   const scheduler = TimeoutPollingManager()
-  const triggers = new Set()
+  const triggers = new Map()
 
-  // what are the details?
   const add = (id, details) => {
+    // if the trigger is being updated, reset system state for trigger bucket.
+    if (triggers.has(id)) {
+      remove(id)
+    }
+
     const { bucket, interval, s3_endpoint, s3_api_key } = details
 
-    // ? config validation
     const client = new COS.S3({ endpoint: s3_endpoint, apiKeyId: s3_api_key })
 
-    const bucketFiles = BucketFiles(client)
-
-    // SHOULD BE PER TRIGGER NOT IN A MAP ??
-    // WHAT ABOUT CONCURRENT REQUESTS? SHOULD HANDLE MULTIPLE REQS NEED BUCKET + TRIGGER ID?
+    const bucketFiles = BucketFiles(client, bucket, logger)
     const bucketEventQueue = Queue(id)
     const fireTrigger = event => triggerManager.fireTrigger(id, event)
 
     // fires triggers upon file event messages on queue
-    const listener = TriggerQueueListener(bucketEventQueue, fireTrigger)
+    const listener = TriggerQueueListener(bucketEventQueue, fireTrigger, logger, id)
 
     // poll bucket files for changes
-    const bucketPoller = BucketPoller(bucketFiles, bucket, bucketFileCache, bucketEventQueue)
+    const bucketPoller = BucketPoller(bucketFiles, id, bucketFileCache, bucketEventQueue, logger)
 
     const interval_in_ms = interval * 60 * 1000
 
     // schedule bucket polling each minute
     scheduler.add(id, bucketPoller, interval_in_ms)
 
-    triggers.add(id)
+    triggers.set(id, bucket)
   }
   
   const remove = id => {
-    // what id doesn't exist ??
+    if (!triggers.has(id)) return
 
-    // stop polling for bucket changes
+    // stop polling for file changes on bucket
     scheduler.remove(id)
-    // clear out remaining untriggered file change events
-    Queue(id).clear()
+
+    // remove untriggered file change events
+    const queue = Queue(id)
+    queue.clear()
+
+    // remove cached file etags 
+    bucketFileCache.del(id)
 
     triggers.delete(id)
   }

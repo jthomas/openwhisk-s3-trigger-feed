@@ -4,6 +4,14 @@ const S3TriggerFeed = require('../../index.js')
 const Redis = require('../../lib/redis.js')
 const openwhisk = require('openwhisk')
 const COS = require('ibm-cos-sdk')
+const winston = require('winston')
+
+const level = process.env.LOG_LEVEL || 'error'
+const consoleLogger = new winston.transports.Console({ format: winston.format.simple() })
+
+const logger = winston.createLogger({
+  level, transports: [ consoleLogger ]
+});
 
 const mandatoryEnvParams = [
   'REDIS',
@@ -22,11 +30,11 @@ for (let param of mandatoryEnvParams) {
 test.before(async t => {
   const ow = openwhisk()
 
-  console.log('create triggers & rules...')
+  logger.info('create triggers & rules...')
   await ow.triggers.update({name: 's3-trigger-feed-test'})
   await ow.rules.update({name: 's3-trigger-feed-test-rule', action: '/whisk.system/utils/echo', trigger: 's3-trigger-feed-test'})
 
-  console.log('ensuring bucket is empty...')
+  logger.info('ensuring bucket is empty...')
   const s3 = new COS.S3({
     endpoint: process.env.BUCKET_ENDPOINT,
     apiKeyId: process.env.BUCKET_API_KEY
@@ -40,11 +48,11 @@ test.before(async t => {
 
   params.Delete.Objects = bucket.Contents.map(file => ({Key: file.Key}))
   if (params.Delete.Objects.length) {
-    console.log('removing bucket files:', params.Delete.Objects.length)
+    logger.info('removing bucket files:', params.Delete.Objects.length)
     await s3.deleteObjects(params).promise()
   }
 
-  console.log('clearing cached file list')
+  logger.info('clearing cached file list')
   const redis = Redis(process.env.REDIS)
   await redis.del(process.env.BUCKET_ID)
 }) 
@@ -66,7 +74,7 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
     fireTrigger: (id, event) => ow.triggers.invoke({name: id, params: event})
   }
 
-  const feedProvider = S3TriggerFeed(triggerManager, console)
+  const feedProvider = S3TriggerFeed(triggerManager, logger)
 
   const trigger = '/_/s3-trigger-feed-test'
   const details = {
@@ -110,14 +118,14 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
   }
 
   const wait_for_activations = async (name, since, max) => {
-    console.log(`looking for ${max} activations (${name}) since ${since}`)
+    logger.info(`looking for ${max} activations (${name}) since ${since}`)
     let activations = []
     while(activations.length < max) {
       activations = await ow.activations.list({name, since, limit: max})
-      console.log('returned activations', activations.length)
+      logger.info('returned activations', activations.length)
     }
 
-    console.log('retrieving activation details...')
+    logger.info('retrieving activation details...')
     const activationObjs = await Promise.all(activations.map(actv => ow.activations.get({name: actv.activationId})))
     const activationEvents = activationObjs.map(actv => actv.response.result)
       .sort(sort_name)

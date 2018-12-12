@@ -30,7 +30,8 @@ test('should invoke trigger for each file event on queue', async t => {
     })
   }
 
-  const listener = TriggerQueueListener(q, operation)
+  const logger = { debug: () => {}, info: () => {} }
+  const listener = TriggerQueueListener(q, operation, logger)
   q.push(files)
 
   return new Promise((resolve) => {

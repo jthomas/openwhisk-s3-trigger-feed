@@ -4,6 +4,8 @@ const crypto = require("crypto")
 const BucketPoller = require('../../lib/bucket_poller.js')
 const BucketFiles = require('../../lib/bucket_files.js')
 
+const logger = { debug: () => {}, info: () => {} }
+
 test('should queue all returned file changes', async t => {
   t.plan(1)
   const previous_files = new Map()
@@ -32,7 +34,7 @@ test('should queue all returned file changes', async t => {
     t.deepEqual(item, BucketFiles().file_changes(previous_files, current_files))
   }
 
-  const bucket_poller = BucketPoller(bucket_files, BUCKET, cache, { push })
+  const bucket_poller = BucketPoller(bucket_files, BUCKET, cache, { push }, logger)
   await bucket_poller()
 })
 
@@ -62,7 +64,7 @@ test('should not queue anything with no file changes', async t => {
     set: () => called = true
   }
 
-  const bucket_poller = BucketPoller(bucket_files, BUCKET, cache, { push: () => called = true })
+  const bucket_poller = BucketPoller(bucket_files, BUCKET, cache, { push: () => called = true }, logger)
   await bucket_poller()
 
   t.false(called)
