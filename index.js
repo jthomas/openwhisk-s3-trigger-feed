@@ -6,6 +6,7 @@ const BucketPoller = require('./lib/bucket_poller.js')
 const TimeoutPollingManager = require('./lib/timeout_polling_manager.js')
 const Queue = require('./lib/queue.js')
 const TriggerQueueListener = require('./lib/trigger_queue_listener.js')
+const Validate = require('./lib/validate.js')
 
 // use for self-signed redis certificate
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
@@ -15,15 +16,20 @@ module.exports = function (triggerManager, logger, redis = process.env.REDIS) {
   const scheduler = TimeoutPollingManager()
   const triggers = new Map()
 
+  scheduler.on('error', async (id, err) => {
+    logger.error('s3-trigger-feed', `error from s3 polling operation for trigger ${id}`, err)
+    triggerManager.disableTrigger(id, null, err.message)
+  })
+
   const add = async (id, details) => {
     // if the trigger is being updated, reset system state for trigger bucket.
     if (triggers.has(id)) {
       remove(id)
     }
 
-    const { bucket, interval, s3_endpoint, s3_api_key } = details
+    const { bucket, interval, s3_endpoint, s3_apikey } = details
 
-    const client = new COS.S3({ endpoint: s3_endpoint, apiKeyId: s3_api_key })
+    const client = new COS.S3({ endpoint: s3_endpoint, apiKeyId: s3_apikey })
 
     const bucketFiles = BucketFiles(client, bucket, logger)
     const bucketEventQueue = Queue(id)
@@ -61,3 +67,5 @@ module.exports = function (triggerManager, logger, redis = process.env.REDIS) {
 
   return { add, remove }
 }
+
+module.exports.validate = async params => Validate(params, COS.S3)

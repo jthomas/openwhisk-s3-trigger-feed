@@ -2,23 +2,33 @@ import test from 'ava'
 
 const PollManager = require('../../lib/poll_manager.js')
 
-test('should set timeout id in poll state and call set with operation and delay', async t => {
-  t.plan(3)
+test('should set timeout ids and call poll operation with correct delays', async t => {
+  t.plan(4)
+
   const state = new Map()
   const delay = 1000
   const id = 'bucket-name'
-  const operation = async () => {}
+  const operation = async () => Promise.resolve()
+
+  let current_delay
+  let current_operation 
 
   const set = (_operation, _delay) => {
-    t.deepEqual(_operation, operation)
-    t.is(_delay, delay)
+    current_delay = _delay
+    current_operation = _operation
     return 12345
   }
 
   const manager = PollManager(state, set)
 
+  // first poll operation after addition should be immediate
   manager.add(id, operation, delay)
   t.is(state.get(id), 12345)
+  t.is(current_delay, 0)
+  // ..then uses delay parameter
+  await current_operation()
+  t.is(state.get(id), 12345)
+  t.is(current_delay, delay)
 })
 
 test('should repeat polling operation until id is removed from state', async t => {
@@ -54,27 +64,39 @@ test('should repeat polling operation until id is removed from state', async t =
   t.is(state.get(id), null)
 })
 
-test('should clear timeout and remove key from state on remove', async t => {
+test('should clear timeout and remove key from state on remove', t => {
   const id = 'bucket-id'
   const state = new Map()
+  const timeout_id = 12345
+  t.plan(4)
+
+  const manager = PollManager(state, () => timeout_id, id => {
+    t.is(id, timeout_id)
+  })
+
+  manager.add(id, () => t.fail(), 100)
+  t.is(state.size, 1)
+  t.is(state.get(id), timeout_id)
+
+  manager.remove(id)
+  t.is(state.size, 0)
+})
+
+test('should clear timeout and emit error when operation fails', async t => {
+  const id = 'trigger-id'
+  const state = new Map()
+  const timeout_id = 12345
+  const err = new Error('some error message')
   t.plan(3)
 
-  const manager = PollManager(state, setTimeout, id => {
-    t.pass()
-    clearTimeout(id)
+  const manager = PollManager(state, setTimeout, clearTimeout)
+
+  manager.on('error', (_id, _err) => {
+    t.is(id, _id)
+    t.is(err, _err)
+    t.is(state.size, 0)
   })
 
-  manager.add(id, () => t.fail(), 10)
-  t.is(state.size, 1)
-
-  setTimeout(() => {
-    manager.remove(id)
-  }, 0)
-
-  const finished = new Promise((resolve, reject) => {
-    setTimeout(resolve, 100)
-  })
-  await finished
-
-  t.is(state.size, 0)
+  manager.add(id, () => {throw err}, 0)
+  return new Promise(resolve => setTimeout(resolve, 1))
 })
