@@ -1,0 +1,13 @@
+{
+  "redis": "rediss://admin:b196fc74699bee0621a8b2deb033e01a2a9555fc929f6ab7b757f6bd3e8c50aa@b8c836b6-a208-45c9-8ce7-5ccade905e6f.8f7bfd8f3faa4218aec56e069eb46187.databases.appdomain.cloud:31351/0",
+  "openwhisk": {
+    "apihost": "openwhisk.eu-gb.bluemix.net",
+    "api_key": "0a59b114-f00f-4a0c-acde-ab217315dd5b:BqUnKDbQUW7fCRIOnpBcqS6dvMQXpedmRxvpk8C8IOcthsPwAigY5EoHg3nfCwOc",
+    "namespace": "_"
+  },
+  "bucket": {
+    "endpoint": "s3.eu-gb.objectstorage.softlayer.net",
+    "api_key": "WGgqtnFUBGc7Mvl8bGj85LnBJUJReGlINm_qOqL7OFuQ",
+    "id": "polling-for-changes"
+  }
+}

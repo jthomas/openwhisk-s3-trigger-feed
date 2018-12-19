@@ -8,20 +8,20 @@ const logger = { debug: () => {}, info: () => {} }
 
 test('should queue all returned file changes', async t => {
   t.plan(1)
-  const previous_files = new Map()
-  const current_files = new Map()
+  const previous_files = []
+  const current_files = []
 
   const total_files = 100
 
   for (let idx = 0; idx < total_files; idx++) {
-    const name = crypto.randomBytes(20).toString('hex');
-    const etag = crypto.randomBytes(40).toString('hex');
-    current_files.set(name, etag)
+    const Key = crypto.randomBytes(20).toString('hex');
+    const ETag = crypto.randomBytes(40).toString('hex');
+    current_files.push({Key, ETag})
   }
 
   const BUCKET = 'some-bucket'
   const bucket_files = {
-    etags: () => current_files,
+    current: () => current_files,
     file_changes: BucketFiles().file_changes
   }
 
@@ -39,21 +39,21 @@ test('should queue all returned file changes', async t => {
 })
 
 test('should not queue anything with no file changes', async t => {
-  const current_files = new Map()
+  const current_files = []
 
   const total_files = 100
 
   for (let idx = 0; idx < total_files; idx++) {
-    const name = crypto.randomBytes(20).toString('hex');
-    const etag = crypto.randomBytes(40).toString('hex');
-    current_files.set(name, etag)
+    const Key = crypto.randomBytes(20).toString('hex');
+    const ETag = crypto.randomBytes(40).toString('hex');
+    current_files.push({Key, ETag})
   }
 
-  const previous_files = new Map(current_files)
+  const previous_files = current_files.slice()
 
   const BUCKET = 'some-bucket'
   const bucket_files = {
-    etags: () => current_files,
+    current: () => current_files,
     file_changes: BucketFiles().file_changes
   }
 

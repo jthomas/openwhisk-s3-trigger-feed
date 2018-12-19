@@ -50,34 +50,34 @@ test.before(async t => {
 
   logger.info('clearing cached file list')
   const redis = Redis(config.redis)
-  await redis.del(config.bucket.id)
+  await redis.del('/_/s3-trigger-feed-test')
 }) 
 
 test.after.always(async t => {
-  const ow = openwhisk()
+  const ow = openwhisk(config.openwhisk)
 
   await ow.triggers.delete({name: 's3-trigger-feed-test'})
   await ow.rules.delete({name: 's3-trigger-feed-test-rule'})
 
   const redis = Redis(config.redis)
-  await redis.del(config.bucket.id)
+  await redis.del('/_/s3-trigger-feed-test')
 })
 
 test('object store bucket changes should invoke openwhisk triggers', async t => {
-  const ow = openwhisk()
+  const ow = openwhisk(config.openwhisk)
 
   const triggerManager = {
     fireTrigger: (id, event) => ow.triggers.invoke({name: id, params: event})
   }
 
-  const feedProvider = new S3TriggerFeed(triggerManager, logger)
+  const feedProvider = new S3TriggerFeed(triggerManager, logger, config.redis)
 
   const trigger = '/_/s3-trigger-feed-test'
   const details = {
     bucket: config.bucket.id,
     s3_endpoint: config.bucket.endpoint,
-    s3_api_key: config.bucket.api_key,
-    interval: 0
+    s3_apikey: config.bucket.api_key,
+    interval: 0.1
   }
 
   const s3 = new COS.S3({
@@ -87,7 +87,7 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
 
   feedProvider.add(trigger, details)
 
-  const NUMBER_OF_FILES = 100
+  const NUMBER_OF_FILES = 10
   const newFiles = []
 
   for(let i = 0; i < NUMBER_OF_FILES; i++) {
@@ -102,15 +102,8 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
     files.map(file => s3.putObject(file).promise())
   )
 
-  const sort_name = (a, b) => {
-    if (a.name < b.name) {
-      return -1;
-    }
-    if (a.name > b.name) {
-      return 1;
-    }
-
-    return 0;
+  const timeout = async delay => {
+    return new Promise(resolve => setTimeout(resolve, delay))
   }
 
   const wait_for_activations = async (name, since, max) => {
@@ -118,20 +111,18 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
     let activations = []
     while(activations.length < max) {
       activations = await ow.activations.list({name, since, limit: max})
-      logger.info('returned activations', activations.length)
+      logger.info(`activations returned: ${activations.length}`)
+      await timeout(1000)
     }
 
     logger.info('retrieving activation details...')
     const activationObjs = await Promise.all(activations.map(actv => ow.activations.get({name: actv.activationId})))
     const activationEvents = activationObjs.map(actv => actv.response.result)
-      .sort(sort_name)
 
     return activationEvents
   }
 
-  const fileEvents = (files, status) =>
-    files.map(file => ({ name: file.Key, status }))
-    .sort(sort_name)
+  const sort_on = (items, prop) => items.map(prop).sort()
 
   return new Promise(async (resolve, reject) => {
     try {
@@ -139,7 +130,9 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
       await putFilesinBucket(newFiles)
 
       let activationEvents = await wait_for_activations('s3-trigger-feed-test', now, newFiles.length)
-      t.deepEqual(fileEvents(newFiles, 'added'), activationEvents)
+      t.deepEqual(sort_on(newFiles, f => f.Key), sort_on(activationEvents, f => f.file.Key))
+      t.deepEqual(newFiles.map(() => 'added'), activationEvents.map(f => f.status))
+
 
       newFiles.forEach((file, i) => file.Body = `modified-file-contents-${i}`)
 
@@ -147,7 +140,8 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
       await putFilesinBucket(newFiles)
 
       activationEvents = await wait_for_activations('s3-trigger-feed-test', now, newFiles.length)
-      t.deepEqual(fileEvents(newFiles, 'modified'), activationEvents)
+      t.deepEqual(sort_on(newFiles, f => f.Key), sort_on(activationEvents, f => f.file.Key))
+      t.deepEqual(newFiles.map(() => 'modified'), activationEvents.map(f => f.status))
 
       const params = {
         Bucket: config.bucket.id,
@@ -159,7 +153,8 @@ test('object store bucket changes should invoke openwhisk triggers', async t => 
       await s3.deleteObjects(params).promise()
 
       activationEvents = await wait_for_activations('s3-trigger-feed-test', now, newFiles.length)
-      t.deepEqual(fileEvents(newFiles, 'deleted'), activationEvents)
+      t.deepEqual(sort_on(newFiles, f => f.Key), sort_on(activationEvents, f => f.file.Key))
+      t.deepEqual(newFiles.map(() => 'deleted'), activationEvents.map(f => f.status))
 
       resolve()
     } catch (err) {

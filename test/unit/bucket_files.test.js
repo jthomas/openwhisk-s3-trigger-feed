@@ -7,103 +7,110 @@ const bucket = 'some-bucket'
 const logger = { debug: () => {}, info: () => {} }
 
 test('should return no changes for empty current and previous buckets', t => {
-  const changed = BucketFiles(client, bucket, logger).file_changes(new Map(), new Map())
+  const changed = BucketFiles(client, bucket, logger).file_changes([], [])
 
-  t.is(changed.size, 0, 'bucket should be empty')
+  t.is(changed.length, 0, 'bucket should be empty')
 })
 
 test('should return no changes for same current and previous bucket files', t => {
-  const files = new Map()
+  const files = []
 
   const total_files = 100
   for (let idx = 0; idx < total_files; idx++) {
-    const name = crypto.randomBytes(20).toString('hex');
-    const etag = crypto.randomBytes(40).toString('hex');
-    files.set(name, etag)
+    const Key = crypto.randomBytes(20).toString('hex');
+    const ETag = crypto.randomBytes(40).toString('hex');
+    files.push({Key, ETag})
   }
 
-  t.is(files.size, 100)
+  t.is(files.length, total_files)
   const changed = BucketFiles(client, bucket, logger).file_changes(files, files)
 
-  t.is(changed.size, 0, 'bucket should be empty')
+  t.is(changed.length, 0, 'bucket should be empty')
 })
 
 test('should return all files added with empty previous bucket files', t => {
-  const previous = new Map()
-  const current = new Map()
+  const previous = []
+  const current = []
 
   const total_files = 100
+  const files = new Set()
   for (let idx = 0; idx < total_files; idx++) {
-    const name = crypto.randomBytes(20).toString('hex')
-    const etag = crypto.randomBytes(40).toString('hex')
-    current.set(name, etag)
+    const Key = crypto.randomBytes(20).toString('hex')
+    const ETag = crypto.randomBytes(40).toString('hex')
+    const file = { Key, ETag }
+    current.push(file)
+    files.add(file)
   }
 
-  t.is(current.size, 100)
-  t.is(previous.size, 0)
+  t.is(current.length, 100)
+  t.is(previous.length, 0)
 
   const changed = BucketFiles(client, bucket, logger).file_changes(previous, current)
-  t.is(changed.size, current.size, 'bucket should have all the new files')
+  t.is(changed.length, current.length, 'bucket should have all the new files')
 
-  for (let [name, status] of changed) { 
-    t.true(current.has(name), 'file should exist in current bucket')
+  for (let {file, status} of changed) { 
+    t.true(files.has(file), 'file should exist in current bucket')
     t.is(status, 'added', 'file should have added status')
   }
 })
 
 test('should return all files deleted with empty current bucket files', t => {
-  const previous = new Map()
-  const current = new Map()
+  const previous = []
+  const current = []
 
   const total_files = 100
+  const files = new Set()
   for (let idx = 0; idx < total_files; idx++) {
-    const name = crypto.randomBytes(20).toString('hex')
-    const etag = crypto.randomBytes(40).toString('hex')
-    previous.set(name, etag)
+    const Key = crypto.randomBytes(20).toString('hex')
+    const ETag = crypto.randomBytes(40).toString('hex')
+    const file = { Key, ETag }
+    previous.push(file)
+    files.add(file)
   }
 
-  t.is(current.size, 0)
-  t.is(previous.size, 100)
+  t.is(previous.length, 100)
+  t.is(current.length, 0)
 
   const changed = BucketFiles(client, bucket, logger).file_changes(previous, current)
-  t.is(changed.size, previous.size, 'bucket should have all the new files')
+  t.is(changed.length, previous.length, 'bucket should have all the removed files')
 
-  for (let [name, status] of changed) { 
-    t.true(previous.has(name), 'file should exist in current bucket')
-    t.is(status, 'deleted', 'file should have added status')
+  for (let {file, status} of changed) { 
+    t.true(files.has(file), 'file should exist in previous bucket')
+    t.is(status, 'deleted', 'file should have deleted status')
   }
 })
 
 test('should return all files changed with different etags for same files in both buckets', t => {
-  const previous = new Map()
-  const current = new Map()
+  const previous = []
+  const current = []
+  const files = new Set()
 
   const total_files = 100
   for (let idx = 0; idx < total_files; idx++) {
-    const name = crypto.randomBytes(20).toString('hex')
+    const Key = crypto.randomBytes(20).toString('hex')
     const previous_etag = crypto.randomBytes(40).toString('hex')
     const current_etag = crypto.randomBytes(40).toString('hex')
-    previous.set(name, previous_etag)
-    current.set(name, current_etag)
+    previous.push({ Key, ETag: previous_etag })
+    current.push({ Key, ETag: current_etag })
+    files.add(Key)
   }
 
-  t.is(current.size, total_files)
-  t.is(previous.size, total_files)
+  t.is(current.length, total_files)
+  t.is(previous.length, total_files)
 
   const changed = BucketFiles(client, bucket, logger).file_changes(previous, current)
-  t.is(changed.size, current.size, 'bucket should have all changed files')
-  t.is(changed.size, previous.size, 'bucket should have all changed files')
+  t.is(changed.length, current.length, 'bucket should have all changed files')
+  t.is(changed.length, previous.length, 'bucket should have all changed files')
 
-  for (let [name, status] of changed) { 
-    t.true(previous.has(name), 'file should exist in previous bucket')
-    t.true(current.has(name), 'file should exist in current bucket')
+  for (let {file, status} of changed) { 
+    t.true(files.has(file.Key), 'file should exist in buckets')
     t.is(status, 'modified', 'file should have modified status')
   }
 })
 
 test('should return correct files statuses with multiple file changes in buckets', t => {
-  const previous = new Map()
-  const current = new Map()
+  const previous = []
+  const current = []
 
   const added = new Set()
   const modified = new Set()
@@ -112,10 +119,10 @@ test('should return correct files statuses with multiple file changes in buckets
 
   const total_files = 100
   for (let idx = 0; idx < total_files; idx++) {
-    const name = crypto.randomBytes(20).toString('hex')
-    const etag = crypto.randomBytes(40).toString('hex')
-    previous.set(name, etag)
-    current.set(name, etag)
+    const Key = crypto.randomBytes(20).toString('hex')
+    const ETag = crypto.randomBytes(40).toString('hex')
+    previous.push({ Key, ETag })
+    current.push({ Key, ETag })
 
     // make some random modifications to the file list
     // rand produces three states:
@@ -128,18 +135,18 @@ test('should return correct files statuses with multiple file changes in buckets
       case 0: 
         const new_name = crypto.randomBytes(20).toString('hex')
         const new_etag = crypto.randomBytes(40).toString('hex')
-        current.set(new_name, new_etag)
+        current.push( {Key: new_name, ETag: new_etag })
         added.add(new_name)
-        unmodified.add(name)
+        unmodified.add(Key)
         break
       case 1: 
         const modified_etag = crypto.randomBytes(40).toString('hex')
-        current.set(name, modified_etag)
-        modified.add(name)
+        current[current.length - 1].ETag = modified_etag
+        modified.add(Key)
         break
       case 2: 
-        current.delete(name)
-        deleted.add(name)
+        current.pop()
+        deleted.add(Key)
         break
       default:
         throw new Error('invalid operation state')
@@ -148,27 +155,27 @@ test('should return correct files statuses with multiple file changes in buckets
   }
 
   // data validation to ensure setup code is working as expected...
-  t.is(previous.size, total_files)
-  t.is(current.size, previous.size + added.size - deleted.size)
+  t.is(previous.length, total_files)
+  t.is(current.length, previous.length + added.size - deleted.size)
   t.is(unmodified.size, added.size)
-  t.is(unmodified.size, previous.size - deleted.size - modified.size)
+  t.is(unmodified.size, previous.length - deleted.size - modified.size)
 
   const changed = BucketFiles(client, bucket, logger).file_changes(previous, current)
-  t.is(changed.size, added.size + modified.size + deleted.size, 'files changes should have all changed files')
+  t.is(changed.length, added.size + modified.size + deleted.size, 'files changes should have all changed files')
 
-  for (let [name, status] of changed) { 
+  for (let {file, status} of changed) { 
     switch (status) {
       case 'added':
-        t.true(added.has(name))
-        added.delete(name)
+        t.true(added.has(file.Key))
+        added.delete(file.Key)
         break
       case 'deleted':
-        t.true(deleted.has(name))
-        deleted.delete(name)
+        t.true(deleted.has(file.Key))
+        deleted.delete(file.Key)
         break
       case 'modified':
-        t.true(modified.has(name))
-        modified.delete(name)
+        t.true(modified.has(file.Key))
+        modified.delete(file.Key)
         break
       default:
         throw new Error('invalid status')
@@ -180,7 +187,7 @@ test('should return correct files statuses with multiple file changes in buckets
   t.is(modified.size, 0)
 })
 
-test('should return empty etag map for empty bucket', async t => {
+test('should return empty array for empty bucket', async t => {
   t.plan(2)
   const bucket = 'testing'
   const results = { Contents: [] }
@@ -191,12 +198,12 @@ test('should return empty etag map for empty bucket', async t => {
       return { promise: () => Promise.resolve(results) }
     }
   }
-  const name_etags = await BucketFiles(client, bucket, logger).etags()
-  t.is(name_etags.size, 0, 'etags map should be empty')
+  const files = await BucketFiles(client, bucket, logger).current()
+  t.is(files.length, 0, 'file array should be empty')
 })
 
-test('should return etag map for bucket with files', async t => {
-  t.plan(8)
+test('should return current bucket files', async t => {
+  t.plan(2)
   const bucket = 'testing'
   const results = { Contents: [ 
     { Key: 'hello', ETag: 'world' },
@@ -210,11 +217,6 @@ test('should return etag map for bucket with files', async t => {
       return { promise: () => Promise.resolve(results) }
     }
   }
-  const name_etags = await BucketFiles(client, bucket, logger).etags()
-  t.is(name_etags.size, results.Contents.length, 'etags map match results')
-
-  results.Contents.forEach(file => {
-    t.true(name_etags.has(file.Key))
-    t.is(name_etags.get(file.Key), file.ETag)
-  })
+  const files = await BucketFiles(client, bucket, logger).current()
+  t.deepEqual(files, results.Contents, 'current files must match results')
 })

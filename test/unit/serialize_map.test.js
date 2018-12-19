@@ -1,22 +1,22 @@
 import test from 'ava'
 
-const SerializeMap = require('../../lib/serialize_map.js')
+const Encoder = require('../../lib/encoder.js')
 const crypto = require("crypto")
 
-test('encoding and decoding map returns same values', t => {
+test('encoding and decoding array returns same values', t => {
   const entries = 1000
-  const map = new Map()
+  const files = []
   for (let idx = 0; idx < entries; idx++) {
     const key = crypto.randomBytes(20).toString('hex');
     const value = crypto.randomBytes(40).toString('hex');
-    map.set(key, value)
+    files.push({ key, value })
   }
 
-  const encoded = SerializeMap.encode(map)
+  const encoded = Encoder.encode(files)
   t.true(encoded instanceof Buffer)
   // gzip header bytes
   t.is(encoded[0], 31)
   t.is(encoded[1], 139)
-  const decoded = SerializeMap.decode(encoded)
-  t.deepEqual(decoded, map)
+  const decoded = Encoder.decode(encoded)
+  t.deepEqual(decoded, files)
 })

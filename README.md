@@ -22,7 +22,26 @@ wsk trigger create test-s3-trigger --feed /james.thomas@uk.ibm.com_dev/s3-trigge
 ### trigger events
 
 ```
-{"name":"<BUCKET_FILE_NAME>","status":"<added|removed|modified>"}
+{"file":"<BUCKET_FILE_OBJECT>","status":"<added|deleted|modified>"}
+```
+
+#### example
+
+```json
+{
+  "file": {
+    "ETag": "\"fb47672a6f7c34339ca9f3ed55c6e3a9\"",
+    "Key": "file-86.txt",
+    "LastModified": "2018-12-19T08:33:27.388Z",
+    "Owner": {
+      "DisplayName": "80a2054e-8d16-4a47-a46d-4edf5b516ef6",
+      "ID": "80a2054e-8d16-4a47-a46d-4edf5b516ef6"
+    },
+    "Size": 25,
+    "StorageClass": "STANDARD"
+  },
+  "status": "deleted"
+}
 ```
 
 ## limitations
@@ -37,9 +56,9 @@ This event provider uses the "[Pluggable OpenWhisk Event Provider](https://githu
 
 ### memory requirements
 
-Etags for each bucket file need to be stored between polling requests. These values are stored as JavaScript maps serialised to JSON and then compressed using GZIP. Binary strings are then stored directly in Redis.
+Bucket files (with ETags for comparison) need to be stored between polling requests. These values are stored as JavaScript arrays serialised to JSON and then compressed using GZIP. Binary strings are then stored directly in Redis.
 
-250 files, with 32 character file names and 32 character ETags, uses about ~8KB of memory in Redis. Polling 100,000 buckets (1000 users with 100 buckets) of this size would need about 800MB.
+Testing with 1000 random files, this uses ~90KB of memory per bucket in Redis. Polling 10,000 buckets of this size (1000 users with 10 buckets) would need about 900MB.
 
 The application uses an in-memory LRU cache to reduce the amount of network requests to Redis. Cache eviction is based upon a maximum number of keys and defaults to 1000 buckets.
 
