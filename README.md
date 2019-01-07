@@ -13,6 +13,8 @@ This is an Apache OpenWhisk trigger feed for an S3-compatible Object Store. It p
 - `s3_endpoint` is the object store endpoint, e.g. `s3.eu-gb.objectstorage.softlayer.net`
 - `s3_apikey` is the IAM API key for the object store service.
 
+**This package is only currently available on the London region for testing. Please ensure you are logged into `api.eu-gb.bluemix.net`.**
+
 ### example
 
 ```
