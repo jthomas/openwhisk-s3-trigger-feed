@@ -4,9 +4,9 @@ This is an Apache OpenWhisk trigger feed for an S3-compatible Object Store. It p
 
 ## usage
 
-| Entity                                                 | Type | Parameters                               |
-| ------------------------------------------------------ | ---- | ---------------------------------------- |
-| `/james.thomas@uk.ibm.com_dev/s3-trigger-feed/changes` | feed | bucket, interval, s3_endpoint, s3_apikey |
+| Entity                                   | Type | Parameters                               |
+| ---------------------------------------- | ---- | ---------------------------------------- |
+| `/<PROVIDER_NS>/s3-trigger-feed/changes` | feed | bucket, interval, s3_endpoint, s3_apikey |
 
 - `bucket` is the bucket name.
 - `interval` is the polling interval in minutes (minimum 1).
@@ -16,7 +16,7 @@ This is an Apache OpenWhisk trigger feed for an S3-compatible Object Store. It p
 ### example
 
 ```
-wsk trigger create test-s3-trigger --feed /james.thomas@uk.ibm.com_dev/s3-trigger-feed/changes --param bucket <BUCKET_NAME> --param interval <MINS> --param s3_endpoint <COS_ENDPOINT> --param s3_apikey <COS_KEY>
+wsk trigger create test-s3-trigger --feed /<PROVIDER_NS>/s3-trigger-feed/changes --param bucket <BUCKET_NAME> --param interval <MINS> --param s3_endpoint <COS_ENDPOINT> --param s3_apikey <COS_KEY>
 ```
 
 ### trigger events
