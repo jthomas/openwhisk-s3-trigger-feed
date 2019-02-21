@@ -13,8 +13,6 @@ This is an Apache OpenWhisk trigger feed for an S3-compatible Object Store. It p
 - `s3_endpoint` is the object store endpoint, e.g. `s3.eu-gb.objectstorage.softlayer.net`
 - `s3_apikey` is the IAM API key for the object store service.
 
-**This package is only currently available on the London region for testing. Please ensure you are logged into `api.eu-gb.bluemix.net`.**
-
 ### example
 
 ```
@@ -54,7 +52,7 @@ wsk trigger create test-s3-trigger --feed /<PROVIDER_NS>/s3-trigger-feed/changes
 
 ## architecture
 
-This event provider uses the "[Pluggable OpenWhisk Event Provider](https://github.ibm.com/thomas6/openwhisk-pluggable-provider)" to handle the trigger management around trigger feeds. The implementation of the event provider polls each bucket on an interval using the `ListObjects` [API call](https://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html). Results are cached in Redis to allow comparison between calls. An internal memory-based queue is used to decouple polling operations from trigger firing.
+This event provider uses the "[Pluggable OpenWhisk Event Provider](https://github.com/jthomas/openwhisk-pluggable-event-provider)" to handle the trigger management around trigger feeds. The implementation of the event provider polls each bucket on an interval using the `ListObjects` [API call](https://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html). Results are cached in Redis to allow comparison between calls. An internal memory-based queue is used to decouple polling operations from trigger firing.
 
 ### memory requirements
 
