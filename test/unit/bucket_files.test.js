@@ -45,12 +45,14 @@ test('should return all files added with empty previous bucket files', t => {
   t.is(current.length, 100)
   t.is(previous.length, 0)
 
-  const changed = BucketFiles(client, bucket, logger).file_changes(previous, current)
+  const test_bucket = bucket
+  const changed = BucketFiles(client, test_bucket, logger).file_changes(previous, current)
   t.is(changed.length, current.length, 'bucket should have all the new files')
 
-  for (let {file, status} of changed) { 
+  for (let {file, status, bucket} of changed) {
     t.true(files.has(file), 'file should exist in current bucket')
     t.is(status, 'added', 'file should have added status')
+    t.is(bucket, test_bucket, 'file bucket name should exist in the changed info')
   }
 })
 
@@ -71,12 +73,14 @@ test('should return all files deleted with empty current bucket files', t => {
   t.is(previous.length, 100)
   t.is(current.length, 0)
 
-  const changed = BucketFiles(client, bucket, logger).file_changes(previous, current)
+  const test_bucket = bucket
+  const changed = BucketFiles(client, test_bucket, logger).file_changes(previous, current)
   t.is(changed.length, previous.length, 'bucket should have all the removed files')
 
-  for (let {file, status} of changed) { 
+  for (let {file, status, bucket} of changed) {
     t.true(files.has(file), 'file should exist in previous bucket')
     t.is(status, 'deleted', 'file should have deleted status')
+    t.is(bucket, test_bucket, 'file bucket name should exist in the changed info')
   }
 })
 
@@ -98,13 +102,15 @@ test('should return all files changed with different etags for same files in bot
   t.is(current.length, total_files)
   t.is(previous.length, total_files)
 
-  const changed = BucketFiles(client, bucket, logger).file_changes(previous, current)
+  const test_bucket = bucket
+  const changed = BucketFiles(client, test_bucket, logger).file_changes(previous, current)
   t.is(changed.length, current.length, 'bucket should have all changed files')
   t.is(changed.length, previous.length, 'bucket should have all changed files')
 
-  for (let {file, status} of changed) { 
+  for (let {file, status, bucket} of changed) {
     t.true(files.has(file.Key), 'file should exist in buckets')
     t.is(status, 'modified', 'file should have modified status')
+    t.is(bucket, test_bucket, 'file bucket name should exist in the changed info')
   }
 })
 
