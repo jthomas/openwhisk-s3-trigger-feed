@@ -27,9 +27,10 @@ module.exports = function (triggerManager, logger, redis = process.env.REDIS) {
       remove(id)
     }
 
-    const { bucket, interval, s3_endpoint, s3_apikey } = details
+    const { bucket, interval, s3_endpoint, s3_apikey, auth_endpoint } = details
 
-    const client = new COS.S3({ endpoint: s3_endpoint, apiKeyId: s3_apikey })
+    // When `auth_endpoint` is not defined, the COS provided default 'https://iam.ng.bluemix.net/oidc/token' is used
+    const client = new COS.S3({ endpoint: s3_endpoint, apiKeyId: s3_apikey, ibmAuthEndpoint: auth_endpoint })
 
     const bucketFiles = BucketFiles(client, bucket, logger)
     const bucketEventQueue = Queue(id)
