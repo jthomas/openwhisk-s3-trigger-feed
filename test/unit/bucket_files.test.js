@@ -2,9 +2,18 @@ import test from 'ava'
 const crypto = require("crypto")
 const BucketFiles = require('../../lib/bucket_files.js')
 
-const client = () => {}
 const bucket = 'some-bucket'
+const test_endpoint = 'https://s3.eu-gb.cloud-object-storage.appdomain.cloud'
 const logger = { debug: () => {}, info: () => {} }
+const client = {
+  config: {
+    endpoint: test_endpoint
+  },
+  listObjects: options => {
+    t.is(options.Bucket, bucket)
+    return { promise: () => Promise.resolve(results) }
+  }
+}
 
 test('should return no changes for empty current and previous buckets', t => {
   const changed = BucketFiles(client, bucket, logger).file_changes([], [])
@@ -199,6 +208,9 @@ test('should return empty array for empty bucket', async t => {
   const results = { Contents: [] }
 
   const client = {
+    config: {
+      endpoint: test_endpoint
+    },
     listObjects: options => {
       t.is(options.Bucket, bucket)
       return { promise: () => Promise.resolve(results) }
@@ -218,6 +230,9 @@ test('should return current bucket files', async t => {
   ] }
 
   const client = {
+    config: {
+      endpoint: test_endpoint
+    },
     listObjects: options => {
       t.is(options.Bucket, bucket)
       return { promise: () => Promise.resolve(results) }

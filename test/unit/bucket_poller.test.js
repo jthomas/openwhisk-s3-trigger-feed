@@ -4,7 +4,18 @@ const crypto = require("crypto")
 const BucketPoller = require('../../lib/bucket_poller.js')
 const BucketFiles = require('../../lib/bucket_files.js')
 
+const BUCKET = 'some-bucket'
+const test_endpoint = 'https://s3.eu-gb.cloud-object-storage.appdomain.cloud'
 const logger = { debug: () => {}, info: () => {} }
+const client = {
+  config: {
+    endpoint: test_endpoint
+  },
+  listObjects: options => {
+    t.is(options.Bucket, BUCKET)
+    return { promise: () => Promise.resolve(results) }
+  }
+}
 
 test('should queue all returned file changes', async t => {
   t.plan(1)
@@ -19,10 +30,9 @@ test('should queue all returned file changes', async t => {
     current_files.push({Key, ETag})
   }
 
-  const BUCKET = 'some-bucket'
   const bucket_files = {
     current: () => current_files,
-    file_changes: BucketFiles().file_changes
+    file_changes: BucketFiles(client).file_changes
   }
 
   const cache = {
@@ -31,7 +41,7 @@ test('should queue all returned file changes', async t => {
   }
 
   const push = async item => {
-    t.deepEqual(item, BucketFiles().file_changes(previous_files, current_files))
+    t.deepEqual(item, BucketFiles(client).file_changes(previous_files, current_files))
   }
 
   const bucket_poller = BucketPoller(bucket_files, BUCKET, cache, { push }, logger)
@@ -51,10 +61,9 @@ test('should not queue anything with no file changes', async t => {
 
   const previous_files = current_files.slice()
 
-  const BUCKET = 'some-bucket'
   const bucket_files = {
     current: () => current_files,
-    file_changes: BucketFiles().file_changes
+    file_changes: BucketFiles(client).file_changes
   }
 
   let called = false
