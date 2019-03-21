@@ -58,10 +58,12 @@ test('should return all files added with empty previous bucket files', t => {
   const changed = BucketFiles(client, test_bucket, logger).file_changes(previous, current)
   t.is(changed.length, current.length, 'bucket should have all the new files')
 
-  for (let {file, status, bucket} of changed) {
+  for (let {file, status, bucket, endpoint, key} of changed) {
     t.true(files.has(file), 'file should exist in current bucket')
     t.is(status, 'added', 'file should have added status')
     t.is(bucket, test_bucket, 'file bucket name should exist in the changed info')
+    t.truthy(key, "changed info should include the convenience key")
+    t.truthy(endpoint, "changed info should include the endpoint")
   }
 })
 
@@ -86,10 +88,12 @@ test('should return all files deleted with empty current bucket files', t => {
   const changed = BucketFiles(client, test_bucket, logger).file_changes(previous, current)
   t.is(changed.length, previous.length, 'bucket should have all the removed files')
 
-  for (let {file, status, bucket} of changed) {
+  for (let {file, status, bucket, key, endpoint} of changed) {
     t.true(files.has(file), 'file should exist in previous bucket')
     t.is(status, 'deleted', 'file should have deleted status')
     t.is(bucket, test_bucket, 'file bucket name should exist in the changed info')
+    t.truthy(key, "changed info should include the convenience key")
+    t.truthy(endpoint, "changed info should include the endpoint")
   }
 })
 
@@ -116,10 +120,12 @@ test('should return all files changed with different etags for same files in bot
   t.is(changed.length, current.length, 'bucket should have all changed files')
   t.is(changed.length, previous.length, 'bucket should have all changed files')
 
-  for (let {file, status, bucket} of changed) {
+  for (let {file, status, bucket, key, endpoint} of changed) {
     t.true(files.has(file.Key), 'file should exist in buckets')
     t.is(status, 'modified', 'file should have modified status')
     t.is(bucket, test_bucket, 'file bucket name should exist in the changed info')
+    t.truthy(key, "changed info should include the convenience key")
+    t.truthy(endpoint, "changed info should include the endpoint")
   }
 })
 
